@@ -1,2 +1,2 @@
 # filter
-Filters for readers that process writers.
+Filters on pipelines between readers and writers.
