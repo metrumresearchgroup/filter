@@ -80,8 +80,6 @@ func TestFilter(tt *testing.T) {
 			f, err := test.createFunc(t, outputWriter, inputReader)
 			t.R.WantError(test.newWantErr, err)
 
-			f.Start()
-
 			n, err := inputWriter.Write(test.input)
 			t.R.NoError(err)
 			t.R.Equal(n, len(test.input))

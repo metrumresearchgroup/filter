@@ -15,7 +15,6 @@ func main() {
 		panic(err)
 	}
 
-	f.Start()
 	errs := f.Wait()
 	if len(errs) > 0 {
 		for _, err := range errs {

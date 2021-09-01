@@ -19,8 +19,6 @@ var fl filter.FuncList = []filter.Func{bytes.TrimSpace, bytes.ToLower, bytes.Tit
 // If you're going to pipe in data, use os.Pipe instead of io.Pipe
 f, _ := fl.AsChain(os.Stdout, os.Stdin)
 
-f.Start()
-
 // if you have reason to close out (done doing the process, found what you wanted to, etc.)
 // normally you'd put this behind a timeout or other condition.
 _ = f.Close()
@@ -31,4 +29,5 @@ _ = f.Wait()
 
 ## Dependencies
 
-This package depends upon [github.com/metrumresearchgroup/wrapt](https://github.com/metrumresearchgroup/wrapt), our general testing library.
+This package depends upon [github.com/metrumresearchgroup/wrapt](https://github.com/metrumresearchgroup/wrapt), our
+general testing library.
