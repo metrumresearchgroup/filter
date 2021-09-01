@@ -3,26 +3,14 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 
-	"scratch/filter"
-	"scratch/filter/filters"
+	"github.com/metrumresearchgroup/filter"
 )
 
 func main() {
-	in := os.Stdin
-	out := os.Stdout
-
-	inReader, inWriter, err := os.Pipe()
-	if err != nil {
-		panic(err)
-	}
-
-	go io.Copy(inWriter, in)
-
-	var ffl filter.FuncList = []filter.Func{filters.Capitalize, CrazyCaps}
-	f, err := ffl.AsChain(out, inReader)
+	var fl filter.Funcs = []filter.Func{bytes.TrimSpace, bytes.ToLower, bytes.Title}
+	f, err := fl.AsChain(os.Stdout, os.Stdin)
 	if err != nil {
 		panic(err)
 	}
@@ -34,17 +22,4 @@ func main() {
 			fmt.Println(err)
 		}
 	}
-}
-
-// CrazyCaps proves you can define one of these functions everywhere.
-func CrazyCaps(v []byte) []byte {
-	buf := &bytes.Buffer{}
-	for n, b := range v {
-		if n%2 == 0 {
-			buf.Write(bytes.ToUpper([]byte{b}))
-		} else {
-			buf.Write(bytes.ToLower([]byte{b}))
-		}
-	}
-	return buf.Bytes()
 }

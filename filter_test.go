@@ -9,7 +9,7 @@ import (
 
 	"github.com/metrumresearchgroup/wrapt"
 
-	"scratch/filter"
+	"github.com/metrumresearchgroup/filter"
 )
 
 func TestFilter(tt *testing.T) {
@@ -18,7 +18,7 @@ func TestFilter(tt *testing.T) {
 			return bs
 		}
 		// double passthrough to test chaining.
-		fl := filter.FuncList([]filter.Func{passthroughFunc, passthroughFunc})
+		fl := filter.Funcs([]filter.Func{passthroughFunc, passthroughFunc})
 		return fl.AsChain(w, r)
 	}
 	tests := []struct {

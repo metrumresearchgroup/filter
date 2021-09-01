@@ -65,6 +65,7 @@ func (f *Filter) Close() error {
 	if err := f.reader.Close(); err != nil {
 		return err
 	}
+
 	return f.Wait()
 }
 

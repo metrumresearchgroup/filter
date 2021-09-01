@@ -5,9 +5,9 @@ import (
 	"os"
 )
 
-type FuncList []Func
+type Funcs []Func
 
-func (ffl FuncList) AsChain(writer io.Writer, readCloser io.ReadCloser) (*Chain, error) {
+func (ffl Funcs) AsChain(writer io.Writer, readCloser io.ReadCloser) (*Chain, error) {
 	return NewChain(writer, readCloser, ffl...)
 }
 
