@@ -14,7 +14,7 @@ steps:
       - go test -v ./...
 
   - name: lint
-    image: golang:1.16
+    image: golang:1.17
     commands:
       - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1
       - golangci-lint run
