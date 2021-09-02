@@ -90,7 +90,7 @@ func (f *Filter) Wait() error {
 
 type Func func([]byte) []byte
 
-func (ff Func) Filter(writer io.Writer, readCloser io.ReadCloser) *Filter {
+func (ff Func) AsFilter(writer io.Writer, readCloser io.ReadCloser) *Filter {
 	f, err := NewFilter(writer, readCloser, ff)
 	if err != nil {
 		panic(errors.New("impossible situation"))

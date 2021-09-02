@@ -47,7 +47,7 @@ func NewChain(writer io.Writer, readCloser io.ReadCloser, filterFns ...Func) (*C
 			nextReader = pipeReader
 		}
 
-		filter := filterFn.Filter(chainWriter, chainReader)
+		filter := filterFn.AsFilter(chainWriter, chainReader)
 		fc.ffs = append(fc.ffs, filter)
 	}
 
