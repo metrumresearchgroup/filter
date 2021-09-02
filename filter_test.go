@@ -13,17 +13,16 @@ import (
 )
 
 func TestFilter(tt *testing.T) {
-	createDefaultChain := func(t *wrapt.T, w io.Writer, r io.ReadCloser) (*filter.Chain, error) {
+	createDefaultFilter := func(t *wrapt.T, w io.Writer, r io.ReadCloser) *filter.Filter {
 		passthroughFunc := func(bs []byte) []byte {
 			return bs
 		}
 		// double passthrough to test chaining.
-		fl := filter.Funcs([]filter.Func{passthroughFunc, passthroughFunc})
-		return fl.AsChain(w, r)
+		return filter.Funcs([]filter.Func{passthroughFunc}).AsFilter(w, r)
 	}
 	tests := []struct {
 		name                  string
-		createFunc            func(t *wrapt.T, w io.Writer, r io.ReadCloser) (*filter.Chain, error)
+		createFunc            func(t *wrapt.T, w io.Writer, r io.ReadCloser) *filter.Filter
 		newWantErr            bool
 		input, expectedOutput []byte
 	}{
@@ -58,7 +57,7 @@ func TestFilter(tt *testing.T) {
 			t := wrapt.WrapT(tt)
 
 			if test.createFunc == nil {
-				test.createFunc = createDefaultChain
+				test.createFunc = createDefaultFilter
 			}
 
 			inputReader, inputWriter, err := os.Pipe()
@@ -77,15 +76,14 @@ func TestFilter(tt *testing.T) {
 				}
 			}()
 
-			f, err := test.createFunc(t, outputWriter, inputReader)
-			t.R.WantError(test.newWantErr, err)
+			f := test.createFunc(t, outputWriter, inputReader)
 
 			n, err := inputWriter.Write(test.input)
 			t.R.NoError(err)
 			t.R.Equal(n, len(test.input))
 
 			time.Sleep(100 * time.Millisecond)
-
+			t.A.WantError(test.newWantErr, f.Err)
 			t.A.Equal(test.expectedOutput, buf.Bytes())
 
 			t.R.Empty(f.Close())

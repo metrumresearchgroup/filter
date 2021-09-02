@@ -2,8 +2,6 @@ package filter
 
 import (
 	"bufio"
-	"bytes"
-	"errors"
 	"io"
 	"sync"
 )
@@ -13,30 +11,32 @@ import (
 type Filter struct {
 	Err error
 
-	reader io.ReadCloser
-	writer io.Writer
+	funcs Funcs
 
-	ff        Func
+	readCloser io.ReadCloser
+	writer     io.Writer
+
+	// synchronization
 	wg        *sync.WaitGroup
 	startOnce *sync.Once
 }
 
 // NewFilter creates a filter and binds it to a function of type
 // func([]byte) []byte.
-func NewFilter(writer io.Writer, readCLoser io.ReadCloser, ff Func) (*Filter, error) {
-	if ff == nil {
-		return nil, errors.New("passed nil filter func")
-	}
+func NewFilter(writer io.Writer, readCloser io.ReadCloser, ff ...Func) *Filter {
 	f := &Filter{
-		reader:    readCLoser,
-		writer:    writer,
-		ff:        ff,
+		readCloser: readCloser,
+		writer:     writer,
+		funcs:      ff,
+
+		// synchronization
 		wg:        &sync.WaitGroup{},
 		startOnce: &sync.Once{},
 	}
+
 	f.start()
 
-	return f, nil
+	return f
 }
 
 // start kicks off the background process to monitor incoming new lines
@@ -44,21 +44,23 @@ func NewFilter(writer io.Writer, readCLoser io.ReadCloser, ff Func) (*Filter, er
 // run once, so it's prepared in a sync.Once block.
 func (f *Filter) start() {
 	f.startOnce.Do(func() {
-		scanner := bufio.NewScanner(f.reader)
+		scanner := bufio.NewScanner(f.readCloser)
 
 		f.wg.Add(1)
 
+		// note on debugging tests: they have a very short window of operation
+		// and they will time out if you create a breakpoint inside this gofunc.
 		go func() {
 			defer f.wg.Done()
 
 			var err error
-			for scanner.Scan() {
-				buf := bytes.Buffer{}
-				buf.Write(f.ff(scanner.Bytes()))
-				buf.WriteByte('\n')
 
-				_, err = f.writer.Write(buf.Bytes())
-				if err != nil {
+			for scanner.Scan() {
+				if _, err = f.writer.Write(f.funcs.applyRow(scanner.Bytes())); err != nil {
+					break
+				}
+
+				if _, err = f.writer.Write([]byte{'\n'}); err != nil {
 					break
 				}
 			}
@@ -72,7 +74,7 @@ func (f *Filter) start() {
 // loop. This allows us to exit. It waits for the reader to close and
 // scan work to complete before exiting.
 func (f *Filter) Close() error {
-	if err := f.reader.Close(); err != nil {
+	if err := f.readCloser.Close(); err != nil {
 		return err
 	}
 
@@ -91,10 +93,5 @@ func (f *Filter) Wait() error {
 type Func func([]byte) []byte
 
 func (ff Func) AsFilter(writer io.Writer, readCloser io.ReadCloser) *Filter {
-	f, err := NewFilter(writer, readCloser, ff)
-	if err != nil {
-		panic(errors.New("impossible situation"))
-	}
-
-	return f
+	return NewFilter(writer, readCloser, ff)
 }

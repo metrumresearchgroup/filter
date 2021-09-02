@@ -3,11 +3,22 @@ package filter
 import (
 	"bufio"
 	"bytes"
+	"io"
 )
 
+// Funcs is a slice of Func type for the purpose of ordered execution.
+type Funcs []Func
+
+// AsFilter converts Funcs into a discrete, concurrent filter.
+func (fs Funcs) AsFilter(writer io.Writer, readCloser io.ReadCloser) *Filter {
+	return NewFilter(writer, readCloser, fs...)
+}
+
+// Apply process a slice of byte for rows of input and applies all Func
+// entries to each row.
 func (fs Funcs) Apply(s []byte) ([]byte, error) {
 	// a shortcut for single rows; trying to keep it efficient for
-	// large datasets by skipping this step if the line is > 1000 bytes
+	// large datasets by skipping this search if the line is > 1k
 	if len(s) < 1024 && !bytes.Contains(s, []byte{'\n'}) {
 		return fs.applyRow(s), nil
 	}
@@ -51,5 +62,6 @@ func (fs Funcs) applyRow(s []byte) []byte {
 		out := fn(res)
 		res = out
 	}
+
 	return res
 }
