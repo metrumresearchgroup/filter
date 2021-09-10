@@ -31,7 +31,7 @@ func TestFilter(tt *testing.T) {
 			expectedOutput: []byte{},
 		},
 		{
-			name:  "apply DropEmpty nothing",
+			name:  "apply DropEmpty",
 			input: []byte("hello\n\nworld\n"),
 			createFunc: func(t *wrapt.T, w io.Writer, r io.ReadCloser) *filter.Filter {
 				f := createDefaultFilter(t, w, r)
