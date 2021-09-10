@@ -12,7 +12,7 @@ import (
 type Filter struct {
 	Err error
 
-	funcs Funcs
+	Funcs Funcs
 
 	readCloser io.ReadCloser
 	writer     io.Writer
@@ -26,11 +26,13 @@ type Filter struct {
 // func([]byte) []byte.
 func NewFilter(writer io.Writer, readCloser io.ReadCloser, ff ...Func) *Filter {
 	f := &Filter{
+		Funcs: ff,
+
+		// IO
 		readCloser: readCloser,
 		writer:     writer,
-		funcs:      ff,
 
-		// synchronization
+		// Sync
 		wg:        &sync.WaitGroup{},
 		startOnce: &sync.Once{},
 	}
@@ -57,7 +59,12 @@ func (f *Filter) start() {
 			var err error
 
 			for scanner.Scan() {
-				if _, err = f.writer.Write(f.funcs.applyRow(scanner.Bytes())); err != nil {
+				row := f.Funcs.applyRow(scanner.Bytes())
+				if row == nil {
+					continue
+				}
+
+				if _, err = f.writer.Write(row); err != nil {
 					break
 				}
 
@@ -109,11 +116,11 @@ func (fs Funcs) AsFilter(writer io.Writer, readCloser io.ReadCloser) *Filter {
 
 // Apply process a slice of byte for rows of input and applies all Func
 // entries to each row.
-func (fs Funcs) Apply(s []byte) ([]byte, error) {
+func (fs Funcs) Apply(s []byte) []byte {
 	// a shortcut for single rows; trying to keep it efficient for
 	// large datasets by skipping this search if the line is > 1k
 	if len(s) < 1024 && !bytes.Contains(s, []byte{'\n'}) {
-		return fs.applyRow(s), nil
+		return fs.applyRow(s)
 	}
 
 	// we'll take a final newline off, but this makes for less
@@ -132,12 +139,13 @@ func (fs Funcs) Apply(s []byte) ([]byte, error) {
 	for inScan.Scan() {
 		res := fs.applyRow(inScan.Bytes())
 
-		if _, err := outBuffer.Write(res); err != nil {
-			return nil, err
-		}
-
-		if err := outBuffer.WriteByte('\n'); err != nil {
-			return nil, err
+		// since applyRow can return nil for empty lines, check
+		// for nil before writing.
+		if res != nil {
+			// We're not checking err since bytes.Buffer never
+			// returns error.
+			outBuffer.Write(res)
+			outBuffer.WriteByte('\n')
 		}
 	}
 
@@ -146,15 +154,27 @@ func (fs Funcs) Apply(s []byte) ([]byte, error) {
 		res = bytes.TrimSuffix(res, []byte{'\n'})
 	}
 
-	return res, nil
+	return res
 }
 
 func (fs Funcs) applyRow(s []byte) []byte {
-	res := s
+	work := s
 	for _, fn := range fs {
-		out := fn(res)
-		res = out
+		work = fn(work)
+
+		// Nothing left to work with. This allows a Func to drop rows.
+		if work == nil {
+			break
+		}
 	}
 
-	return res
+	return work
+}
+
+func DropEmpty(s []byte) []byte {
+	if len(s) == 0 {
+		return nil
+	}
+
+	return s
 }

@@ -31,6 +31,16 @@ func TestFilter(tt *testing.T) {
 			expectedOutput: []byte{},
 		},
 		{
+			name:  "apply DropEmpty nothing",
+			input: []byte("hello\n\nworld\n"),
+			createFunc: func(t *wrapt.T, w io.Writer, r io.ReadCloser) *filter.Filter {
+				f := createDefaultFilter(t, w, r)
+				f.Funcs = append(f.Funcs, filter.DropEmpty)
+				return f
+			},
+			expectedOutput: []byte("hello\nworld\n"),
+		},
+		{
 			name:           "pass-through unterminated row",
 			input:          []byte("hello world"),
 			expectedOutput: []byte{},
@@ -97,11 +107,10 @@ func TestFuncs_Apply(tt *testing.T) {
 		s []byte
 	}
 	tests := []struct {
-		name    string
-		fs      filter.Funcs
-		args    args
-		want    []byte
-		wantErr bool
+		name string
+		fs   filter.Funcs
+		args args
+		want []byte
 	}{
 		{
 			name: "base",
@@ -121,13 +130,18 @@ func TestFuncs_Apply(tt *testing.T) {
 			args: args{s: []byte(Lipsum)},
 			want: []byte(Lipsum),
 		},
+		{
+			name: "empty row removed by DropEmpty",
+			fs:   filter.Funcs([]filter.Func{filter.DropEmpty}),
+			args: args{s: []byte("hello\n\nworld\n")},
+			want: []byte("hello\nworld\n"),
+		},
 	}
 	for _, test := range tests {
 		tt.Run(test.name, func(tt *testing.T) {
 			t := wrapt.WrapT(tt)
-			got, err := test.fs.Apply(test.args.s)
+			got := test.fs.Apply(test.args.s)
 
-			t.R.WantError(test.wantErr, err)
 			t.R.Equal(test.want, got)
 		})
 	}
