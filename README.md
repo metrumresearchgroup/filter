@@ -1,60 +1,60 @@
 # filter
 
-Filters on pipelines between readers and writers.
-
 ## Purpose
 
-This library provides a method to wrap filters in the necessary input and output pipes to pull from readers and write to
-writers. It is intended to work with line-based input, and requires newline characters to call the wrapped functions.
+This library provides a method to wrap filter functions in the necessary input and output pipes to pull from readers and
+write to writers. It is intended to work with line-based input, and processes lines one at a time.
 
 ## Types
 
-* `Func` - a `func([]byte) []byte` for performing a transform of bytes with newlines.
-* `Funcs` - a `[]Func`, also capable of performing transforms of bytes with or without newlines.
-* `Filter` - an asynchronous type that takes a WriteCloser and a Reader, scans input to output on newline.
+* `RowApplier` - an `interface` that represents anything with an `ApplyRow([]byte) []byte` function.
+* `Filter` - a `func([]byte) []byte` for performing a transform of bytes. Typing it in a `Filter()` will give you
+  the `ApplyRow` function, making it a `RowApplier`.
+* `Chain` - an alias to`[]Filter`, operated on in sequence in order. Also Provides `ApplyRow`.
+* `Stream` - an asynchronous type that takes a WriteCloser, a Reader, and a RowApplier, and scans input to output on
+  newline.
+* `Flow` - a synchronous type that takes a `RowApplier` and provides `Apply([]byte) []byte` and processes all input
+  row-by-row until input is exhausted.
 
 ## Usage
 
-The easiest way to use this library is to create a list of []Func and re-type as `filter.Funcs`. You can then
-run `Funcs.Apply([]byte) []byte` on your data.
+The simplest case is using Filter to process a single row:
 
 ```go
-var fs filter.Funcs = []filter.Func{bytes.Trim, bytes.ToUpper}
-r := fs.Apply([]byte("hello world  "))
-// r = "HELLO WORLD"
+var f := Filter(bytes.Trim)
+r := f.ApplyRow([]byte("hello world"))
+// r = "hello world"
 ```
 
-For live interaction, you can bind inputs and outputs to a `Filter`. The best way do this is to create a reusable list
-of function references of the type `func([]byte) []byte` and wrap that in the `filter.Funcs` type, then calling
-its `AsChain()` function to create a new filter chain.
-
-You can create a Filter to process items concurrently.
-
-The short form:
+To string filters together:
 
 ```go
-f := filter.NewFilter(os.Stdout, os.Stdin, bytes.TrimSpace, bytes.ToLower, bytes.Title)
-// if you have reason to close out (done doing the process, found what you wanted to, etc.)
+c := NewChain(bytes.Trim, bytes.Title)
+r := c.ApplyRow([]byte("  hello world"))
+// r = "Hello World"
+```
+
+To apply to multiple rows, use Flow:
+
+```go
+// using compact chaining, you can safely save it as a variable.
+f := NewFlow(NewChain(bytes.Trim, bytes.Title))
+r := f.Apply([]byte("hello world\nhow are you?  "))
+// r = "Hello World\nHow Are You?"
+```
+
+For live interaction, you can bind inputs and outputs to a `Stream`:
+
+```go
+// You can store the and re-use it to make multiple streams.
+c := NewChain(bytes.TrimSpace, bytes.ToLower, bytes.Title)
+f := NewStream(os.Stdout, os.Stdin, c)
+
+// if you have reason to close out (done running the process, found what you wanted to, etc.)
 // normally you'd put this behind a timeout or other condition.
 _ = f.Close()
 
-// perform interactions, ctrl-d or ctrl-c to interrupt.
-_ = f.Wait()
-```
-
-The reusable form:
-```go
-var fs filter.Funcs = []filter.Func{bytes.TrimSpace, bytes.ToLower, bytes.Title}
-
-// We're using Stdout and Stdin, because it's convenient for demonstration.
-// If you're going to pipe in data, use os.Pipe instead of io.Pipe.
-f, _ := fs.AsFilter(os.Stdout, os.Stdin)
-
-// if you have reason to close out (done doing the process, found what you wanted to, etc.)
-// normally you'd put this behind a timeout or other condition.
-_ = f.Close()
-
-// perform interactions, ctrl-d or ctrl-c to interrupt.
+// perform interactions, ctrl-d to interrupt.
 _ = f.Wait()
 ```
 
