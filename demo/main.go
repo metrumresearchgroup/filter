@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	f := NewFilter(os.Stdout, os.Stdin, bytes.TrimSpace, bytes.ToLower, bytes.Title)
+	f := NewStream(os.Stdout, os.Stdin, NewChain(bytes.TrimSpace, bytes.ToLower, bytes.Title))
 
 	if err := f.Wait(); err != nil {
 		fmt.Println(err)

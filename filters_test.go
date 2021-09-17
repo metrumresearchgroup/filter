@@ -1,31 +1,33 @@
 package filter
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/metrumresearchgroup/wrapt"
 )
 
-func TestFilter_Apply(tt *testing.T) {
+func TestDropEmpty(tt *testing.T) {
 	tests := []struct {
 		name string
-		f    Filter
 		s    []byte
 		want []byte
 	}{
 		{
-			name: "apply",
-			f:    bytes.ToLower,
-			s:    []byte("ARG"),
-			want: []byte("arg"),
+			name: "not empty",
+			s:    []byte("not empty"),
+			want: []byte("not empty"),
+		},
+		{
+			name: "not empty",
+			s:    []byte(""),
+			want: []byte(nil),
 		},
 	}
 	for _, test := range tests {
 		tt.Run(test.name, func(tt *testing.T) {
 			t := wrapt.WrapT(tt)
 
-			got := test.f.ApplyRow(test.s)
+			got := DropEmpty(test.s)
 
 			t.R.Equal(test.want, got)
 		})
